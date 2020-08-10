@@ -1,0 +1,48 @@
+version: 2.1
+jobs:
+  validate:
+    docker:
+      - image: hashicorp/packer:1.1.1
+    working_directory: ~/packer
+    steps:
+      - checkout
+      - run:
+          name: Validate base
+          command: packer validate ami-template.json
+
+  build-base:
+    docker:
+      - image: hashicorp/packer:1.1.1
+    working_directory: ~/packer
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/packer  
+      - run:
+          name: Install Packer
+          command: |
+            wget https://releases.hashicorp.com/packer/0.9.0/packer_0.9.0_linux_386.zip
+            unzip packer_0.9.0_linux_386.zip
+            chmod +x packer
+            echo "export PATH=$PATH:~/packer/" >> ~/.bashrc
+      - run:
+          command: pwd && ls
+      - run:
+          name: Build base
+          command: |
+            ./packer build \
+            -var "aws_access_key=${AWS_ACCESS_KEY}" \
+            -var "aws_secret_key=${AWS_SECRET_KEY}" \
+            -var "aws_region=${AWS_REGION}" \
+            -var "subnet_id=subnet-1ec0153f" \
+            -var "ami_description=Ubuntu AMI for Assignment 4" \
+            ami-template.json
+
+workflows:
+  version: 2.1
+  build-and-deploy:
+    jobs:
+      - validate
+      - build-base:
+          requires:
+            - validate
